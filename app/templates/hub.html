@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Institutional Hero & Live System Telemetry -->
+<div class="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 mb-6 border border-slate-800 shadow-sm">
+  <div class="flex flex-wrap items-start justify-between gap-6">
+    <div class="max-w-2xl">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 mb-3">
+        Cap. 485A Regulatory Workbench
+      </span>
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+        CMA Licensing, Supervision &amp; Public Register Hub
+      </h1>
+      <p class="text-sm text-slate-300 mt-2 leading-relaxed">
+        Unified regulatory portal connecting market intermediaries, licensing officers, legal counsel, market supervision, and public investors on a single PostgreSQL 16 rule-enforced core.
+      </p>
+    </div>
+
+    <!-- Quick Certificate Verification Widget -->
+    <form method="get" action="/register" class="w-full sm:w-auto bg-slate-800/90 p-4 rounded-xl border border-slate-700/90 space-y-2">
+      <div class="text-xs font-semibold uppercase tracking-wider text-amber-400">Quick Certificate Check</div>
+      <div class="flex gap-2">
+        <input type="text" name="verify_code" placeholder="VC-8842-K9LP"
+               class="w-40 rounded-lg bg-slate-900 border border-slate-600 px-3 py-1.5 text-xs font-mono uppercase text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none" />
+        <button type="submit" class="btn-amber px-3.5 py-1.5 text-xs">
+          Verify
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Live Database Telemetry Strip -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800 tabular">
+    <div class="bg-slate-800/50 rounded-xl p-3.5 border border-slate-800">
+      <div class="text-xs text-slate-400">Published Active Licences</div>
+      <div class="text-2xl font-bold text-emerald-400 mt-0.5">{{ stats.active_licences }}</div>
+    </div>
+    <div class="bg-slate-800/50 rounded-xl p-3.5 border border-slate-800">
+      <div class="text-xs text-slate-400">Submitted Applications</div>
+      <div class="text-2xl font-bold text-white mt-0.5">{{ stats.total_apps }}</div>
+    </div>
+    <div class="bg-slate-800/50 rounded-xl p-3.5 border border-slate-800">
+      <div class="text-xs text-slate-400">Open Regulatory Cases</div>
+      <div class="text-2xl font-bold text-amber-400 mt-0.5">{{ stats.open_cases }}</div>
+    </div>
+    <div class="bg-slate-800/50 rounded-xl p-3.5 border border-slate-800">
+      <div class="text-xs text-slate-400">Immutable Audit Events</div>
+      <div class="text-2xl font-bold text-slate-200 mt-0.5">{{ stats.audit_count }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- 4 Portal Module Launcher Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+  <!-- Card 1: Public Register -->
+  <a href="/register" class="hub-card bg-white rounded-xl border border-slate-200/90 p-6 flex flex-col justify-between animate-enter">
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-800 font-mono">MODULE 01 · PUBLIC</span>
+        <span class="text-xs font-semibold text-amber-600">Open Portal →</span>
+      </div>
+      <h2 class="text-lg font-bold text-slate-900">Public Register &amp; QR Verification</h2>
+      <p class="text-sm text-slate-600 mt-1.5 leading-relaxed">
+        Search licensed market intermediaries across all 7 CMA categories and verify digital licence certificates using cryptographic verification codes.
+      </p>
+    </div>
+    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-400 font-mono">
+      Backed by: lic.v_public_register · lic.fn_verify_certificate()
+    </div>
+  </a>
+
+  <!-- Card 2: Applicant Portal -->
+  <a href="/applicant" class="hub-card bg-white rounded-xl border border-slate-200/90 p-6 flex flex-col justify-between animate-enter delay-1">
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900 font-mono">MODULE 02 · INTERMEDIARIES</span>
+        <span class="text-xs font-semibold text-amber-600">Open Portal →</span>
+      </div>
+      <h2 class="text-lg font-bold text-slate-900">Corporate Applicant &amp; Returns Portal</h2>
+      <p class="text-sm text-slate-600 mt-1.5 leading-relaxed">
+        Draft new licence applications, upload mandatory statutory checklists, settle eCitizen/M-Pesa fee invoices, respond to queries, and file periodic capital returns.
+      </p>
+    </div>
+    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-400 font-mono">
+      Enforces: BR-08 Checklist Gate · SHA-256 Document Hashing
+    </div>
+  </a>
+
+  <!-- Card 3: CMA Case & Supervision -->
+  <a href="/staff" class="hub-card bg-white rounded-xl border border-slate-200/90 p-6 flex flex-col justify-between animate-enter delay-2">
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-blue-100 text-blue-900 font-mono">MODULE 03 · CMA STAFF</span>
+        <span class="text-xs font-semibold text-amber-600">Open Workspace →</span>
+      </div>
+      <h2 class="text-lg font-bold text-slate-900">CMA Case Evaluation &amp; Supervision</h2>
+      <p class="text-sm text-slate-600 mt-1.5 leading-relaxed">
+        Process cases through Review, Recommendation, Legal Clearance, and Management Approval with strict Segregation of Duties and automatic licence issuance.
+      </p>
+    </div>
+    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-400 font-mono">
+      Enforces: Sequential Stages · Segregation of Duties · BR-26
+    </div>
+  </a>
+
+  <!-- Card 4: Audit Store & SLA -->
+  <a href="/audit" class="hub-card bg-white rounded-xl border border-slate-200/90 p-6 flex flex-col justify-between animate-enter delay-3">
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-900 font-mono">MODULE 04 · GOVERNANCE</span>
+        <span class="text-xs font-semibold text-amber-600">Open Ledger →</span>
+      </div>
+      <h2 class="text-lg font-bold text-slate-900">Tamper-Evident Audit Store &amp; SLA Analytics</h2>
+      <p class="text-sm text-slate-600 mt-1.5 leading-relaxed">
+        Inspect the append-only SHA-256 hash-chained audit trail attributed to active user accounts, seal audit batches, and monitor statutory SLA ageing.
+      </p>
+    </div>
+    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-400 font-mono">
+      Backed by: aud.audit_event · aud.fn_seal_audit() · rpt.v_case_ageing
+    </div>
+  </a>
+
+</div>
+{% endblock %}
