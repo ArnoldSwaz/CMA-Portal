@@ -142,7 +142,7 @@ async def staff_workspace(
     })
 
 
-@router.get("/case/{case_ref}/review", response_class=HTMLResponse)
+@router.get("/case/{case_ref:path}/review", response_class=HTMLResponse)
 async def p22_case_review(request: Request, case_ref: str):
     with get_db() as conn:
         personas = get_personas(conn)
