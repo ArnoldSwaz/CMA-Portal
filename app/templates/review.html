@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}P22 — Checklist Review &amp; Fit and Proper Assessment | CMA-ORLP{% endblock %}
+
+{% block content %}
+{% if not case %}
+  <div class="card">
+    <h1 class="page-title">No Active Case Found</h1>
+    <p class="muted">Seed the demo database or submit an application from the Applicant Workspace first.</p>
+    <a href="/hub" class="btn btn-navy">Return to Demo Hub</a>
+  </div>
+{% else %}
+
+  <!-- Top Case Context Banner -->
+  <div class="card" style="margin-bottom: 1.25rem; border-left: 5px solid var(--cma-navy);">
+    <div class="card-header" style="margin-bottom: 0.5rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span class="badge badge-blue">P22 &middot; INPUT SCREEN</span>
+          <span class="font-mono" style="font-weight: 700; color: var(--cma-navy); font-size: 0.95rem;">
+            {{ case.case_number }}
+          </span>
+          {% if case.reference_number %}
+            <span class="muted">&middot; Application <strong>{{ case.reference_number }}</strong></span>
+          {% endif %}
+        </div>
+        <h1 class="page-title" style="margin-top: 0.25rem;">
+          Checklist Review &amp; Fit and Proper Assessment
+        </h1>
+        <p class="muted" style="margin: 0.2rem 0 0 0;">
+          Applicant: <strong>{{ case.applicant_name }}</strong>
+          {% if case.category_name %}
+            &middot; Category: <strong>{{ case.category_name }}</strong> (v{{ case.version_no }})
+          {% endif %}
+          &middot; Queue: <strong>{{ case.queue_name }}</strong>
+        </p>
+      </div>
+
+      <div style="text-align: right;">
+        <div>
+          {% if case.status == 'CLOSED' %}
+            <span class="badge badge-green">{{ case.status }}</span>
+          {% elif case.status == 'AWAITING_APPLICANT' %}
+            <span class="badge badge-amber">{{ case.status }}</span>
+          {% elif case.status == 'ESCALATED' %}
+            <span class="badge badge-red">{{ case.status }}</span>
+          {% else %}
+            <span class="badge badge-blue">{{ case.status }}</span>
+          {% endif %}
+        </div>
+        <div class="muted tabular" style="margin-top: 0.35rem; font-size: 0.76rem;">
+          SLA Due: <strong>{{ case.sla_due_at.strftime('%Y-%m-%d %H:%M') if case.sla_due_at else 'N/A' }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Readiness Strip -->
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.82rem;">
+        <span>
+          Checklist Reviewed: <strong class="tabular">{{ reviewed_count }} / {{ total_checklist }}</strong>
+        </span>
+        <span>
+          Key Persons Assessed: <strong class="tabular">{{ assessed_kp_count }} / {{ total_kp }}</strong>
+        </span>
+        {% if remaining_count > 0 %}
+          <span class="badge badge-amber">{{ remaining_count }} item(s) remaining before submission</span>
+        {% else %}
+          <span class="badge badge-green">All required reviews complete</span>
+        {% endif %}
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <a href="/staff" class="btn btn-outline">&larr; Back to Case Inbox</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section A: Frozen Category Checklist -->
+  <div class="card" style="margin-bottom: 1.25rem;">
+    <div class="card-header">
+      <div>
+        <h2 class="section-title" style="margin-bottom: 0.15rem;">
+          1. Statutory Checklist Review (<code>wf.checklist_review</code>)
+        </h2>
+        <p class="muted" style="margin: 0;">
+          Frozen against the category version at submission. Selecting <strong>NOT MET</strong> requires explanatory remarks (enforced by PostgreSQL check constraint).
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="cma-table">
+        <thead>
+          <tr>
+            <th style="width: 12%;">Code</th>
+            <th style="width: 33%;">Checklist Requirement</th>
+            <th style="width: 15%;">Current Result</th>
+            <th style="width: 40%;">Record / Update Officer Finding</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in checklist_items %}
+          <tr>
+            <td class="font-mono" style="font-weight: 700; color: var(--cma-navy);">
+              {{ item.item_code }}
+              {% if item.is_mandatory %}
+                <div style="margin-top: 0.2rem;"><span class="badge badge-slate">MANDATORY</span></div>
+              {% endif %}
+            </td>
+            <td>
+              <div style="font-weight: 600;">{{ item.description }}</div>
+              {% if item.statutory_reference %}
+                <div class="muted" style="font-size: 0.75rem; margin-top: 0.2rem;">Ref: {{ item.statutory_reference }}</div>
+              {% endif %}
+              {% if item.doc_filename %}
+                <div style="margin-top: 0.3rem; font-size: 0.75rem;">
+                  Attached: <span class="font-mono">{{ item.doc_filename }}</span>
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.result == 'MET' %}
+                <span class="badge badge-green">MET</span>
+              {% elif item.result == 'NOT_MET' %}
+                <span class="badge badge-red">NOT MET</span>
+              {% elif item.result == 'NOT_APPLICABLE' %}
+                <span class="badge badge-slate">N/A</span>
+              {% else %}
+                <span class="badge badge-amber">UNREVIEWED</span>
+              {% endif %}
+              {% if item.reviewed_by_name %}
+                <div class="muted" style="font-size: 0.7rem; margin-top: 0.25rem;">
+                  By {{ item.reviewed_by_name }}
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="/staff/case/{{ case.case_id }}/checklist" style="display: flex; flex-direction: column; gap: 0.45rem;">
+                <input type="hidden" name="checklist_item_id" value="{{ item.checklist_item_id }}" />
+                {% if item.document_id %}
+                  <input type="hidden" name="document_id" value="{{ item.document_id }}" />
+                {% endif %}
+                <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+                  <select name="result" class="select" style="width: auto; min-width: 155px;" required>
+                    <option value="MET" {% if item.result == 'MET' %}selected{% endif %}>MET</option>
+                    <option value="NOT_MET" {% if item.result == 'NOT_MET' %}selected{% endif %}>NOT MET (Requires Remarks)</option>
+                    <option value="NOT_APPLICABLE" {% if item.result == 'NOT_APPLICABLE' %}selected{% endif %}>NOT APPLICABLE</option>
+                  </select>
+                  <input type="text" name="remarks" value="{{ item.remarks or '' }}"
+                         placeholder="Officer remarks (mandatory if NOT MET)..."
+                         class="input" style="flex: 1; min-width: 170px;" />
+                  <button type="submit" class="btn btn-navy">Save</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="muted" style="text-align: center; padding: 1.25rem;">
+              No checklist items configured for this category version.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section B: Key Person Fit & Proper Assessment -->
+  <div class="card" style="margin-bottom: 1.25rem;">
+    <div class="card-header">
+      <div>
+        <h2 class="section-title" style="margin-bottom: 0.15rem;">
+          2. Key Person Fit &amp; Proper Assessment (<code>app.key_person_declaration</code>)
+        </h2>
+        <p class="muted" style="margin: 0;">
+          Evaluate statutory integrity declarations (criminal conviction, bankruptcy, regulatory sanction, director disqualification) for every key person.
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="cma-table">
+        <thead>
+          <tr>
+            <th style="width: 22%;">Key Person &amp; Role</th>
+            <th style="width: 28%;">Integrity Declarations</th>
+            <th style="width: 15%;">Outcome</th>
+            <th style="width: 35%;">Record Fit &amp; Proper Decision</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kp in key_persons %}
+          <tr>
+            <td>
+              <div style="font-weight: 700; color: var(--cma-navy);">{{ kp.full_name }}</div>
+              <div class="muted" style="font-size: 0.76rem;">{{ kp.key_person_role }}</div>
+              {% if kp.shareholding_percent is not none %}
+                <div class="muted tabular" style="font-size: 0.74rem;">Shareholding: {{ kp.shareholding_percent }}%</div>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                {% if kp.has_criminal_conviction %}
+                  <span class="badge badge-red">Criminal: YES</span>
+                {% else %}
+                  <span class="badge badge-green">Criminal: Clear</span>
+                {% endif %}
+
+                {% if kp.has_been_bankrupt %}
+                  <span class="badge badge-red">Bankruptcy: YES</span>
+                {% else %}
+                  <span class="badge badge-green">Bankruptcy: Clear</span>
+                {% endif %}
+
+                {% if kp.has_regulatory_sanction %}
+                  <span class="badge badge-amber">Sanction: DISCLOSED</span>
+                {% else %}
+                  <span class="badge badge-green">Sanction: Clear</span>
+                {% endif %}
+
+                {% if kp.is_disqualified_director %}
+                  <span class="badge badge-red">Disqualified: YES</span>
+                {% else %}
+                  <span class="badge badge-green">Director: Clear</span>
+                {% endif %}
+              </div>
+              {% if kp.disclosure_notes %}
+                <div class="muted" style="font-size: 0.76rem; margin-top: 0.35rem;">
+                  Note: {{ kp.disclosure_notes }}
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              {% if kp.fit_proper_outcome == 'FIT_AND_PROPER' %}
+                <span class="badge badge-green">FIT &amp; PROPER</span>
+              {% elif kp.fit_proper_outcome == 'NOT_FIT_AND_PROPER' %}
+                <span class="badge badge-red">NOT FIT &amp; PROPER</span>
+              {% else %}
+                <span class="badge badge-amber">PENDING</span>
+              {% endif %}
+              {% if kp.assessed_by_name %}
+                <div class="muted" style="font-size: 0.7rem; margin-top: 0.25rem;">
+                  By {{ kp.assessed_by_name }}
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="/staff/case/{{ case.case_id }}/fit-proper" style="display: flex; flex-direction: column; gap: 0.45rem;">
+                <input type="hidden" name="declaration_id" value="{{ kp.declaration_id }}" />
+                <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+                  <select name="fit_proper_outcome" class="select" style="width: auto; min-width: 175px;" required>
+                    <option value="FIT_AND_PROPER" {% if kp.fit_proper_outcome == 'FIT_AND_PROPER' %}selected{% endif %}>FIT AND PROPER</option>
+                    <option value="NOT_FIT_AND_PROPER" {% if kp.fit_proper_outcome == 'NOT_FIT_AND_PROPER' %}selected{% endif %}>NOT FIT AND PROPER</option>
+                  </select>
+                  <input type="text" name="assessment_remarks" value="{{ kp.assessment_remarks or '' }}"
+                         placeholder="Vetting rationale..." class="input" style="flex: 1; min-width: 150px;" />
+                  <button type="submit" class="btn btn-navy">Record</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="muted" style="text-align: center; padding: 1.25rem;">
+              No key person declarations attached to this application.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section C: Action Footer — Raise Query or Submit Recommendation -->
+  <div class="grid-2">
+    <div class="card">
+      <h3 class="section-title">Raise Query to Applicant</h3>
+      <p class="muted" style="margin-top: 0;">
+        Logs an official query in <code>wf.case_query</code> and transitions the case to <strong>AWAITING_APPLICANT</strong> (pausing the SLA clock).
+      </p>
+      <form method="post" action="/staff/case/{{ case.case_id }}/query" style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <textarea name="query_text" rows="3" class="textarea" required
+                  placeholder="Specify missing documents or clarification required from the applicant..."></textarea>
+        <div>
+          <button type="submit" class="btn btn-outline">Send Query &amp; Pause SLA Clock</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Submit Officer Review Recommendation</h3>
+      <p class="muted" style="margin-top: 0;">
+        Enabled only once every checklist item and key person declaration has been evaluated.
+      </p>
+      <form method="post" action="/staff/case/{{ case.case_id }}/recommend" style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <select name="recommendation" class="select" required>
+          <option value="RECOMMEND_APPROVAL">Recommend Approval to Senior Officer</option>
+          <option value="RECOMMEND_REJECTION">Recommend Rejection (Statutory Non-Compliance)</option>
+        </select>
+        <textarea name="notes" rows="2" class="textarea" required
+                  placeholder="Summary recommendation note for the Senior Licensing Officer..."></textarea>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <button type="submit" class="btn btn-primary" {% if remaining_count > 0 %}disabled{% endif %}>
+            Submit Review &amp; Advance Case
+          </button>
+          {% if remaining_count > 0 %}
+            <span class="muted" style="font-size: 0.76rem;">Complete {{ remaining_count }} remaining item(s) to unlock.</span>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endif %}
+{% endblock %}

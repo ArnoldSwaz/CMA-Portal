@@ -4,7 +4,7 @@ from typing import Optional
 
 import psycopg
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.db import flash_redirect, get_db, get_personas, resolve_actor
@@ -14,6 +14,11 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.cache = None
 
 router = APIRouter(prefix="/staff")
+
+
+@router.get("/inbox")
+async def staff_inbox_redirect():
+    return RedirectResponse(url="/staff", status_code=302)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -132,8 +137,283 @@ async def staff_workspace(
         "all_licences": all_licences,
         "msg": msg,
         "kind": kind,
+        "active_nav": "inbox",
         "active_tab": "staff",
     })
+
+
+@router.get("/case/{case_ref}/review", response_class=HTMLResponse)
+async def p22_case_review(request: Request, case_ref: str):
+    with get_db() as conn:
+        personas = get_personas(conn)
+        actor = resolve_actor(request, personas)
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT cf.case_id::text, cf.case_number, cf.case_type, cf.status,
+                       cf.opened_at, cf.sla_due_at,
+                       q.queue_name,
+                       a.application_id::text, a.reference_number,
+                       a.category_version_id::text,
+                       cv.version_no,
+                       lc.category_name,
+                       coalesce(e.registered_name, p_app.full_name, 'Applicant') AS applicant_name
+                  FROM wf.case_file cf
+                  JOIN wf.queue q ON q.queue_id = cf.queue_id
+                  LEFT JOIN app.application a ON a.application_id = cf.application_id
+                  LEFT JOIN iam.entity e ON e.entity_id = a.applicant_entity_id
+                  LEFT JOIN iam.person p_app ON p_app.person_id = a.applicant_person_id
+                  LEFT JOIN cfg.category_version cv ON cv.category_version_id = a.category_version_id
+                  LEFT JOIN cfg.licence_category lc ON lc.category_id = cv.category_id
+                 WHERE cf.case_id::text = %s
+                    OR cf.case_number = %s
+                    OR a.reference_number = %s
+                 ORDER BY cf.opened_at DESC
+                 LIMIT 1;
+            """, (case_ref, case_ref, case_ref))
+            case = cur.fetchone()
+
+            if not case:
+                cur.execute("""
+                    SELECT cf.case_id::text, cf.case_number, cf.case_type, cf.status,
+                           cf.opened_at, cf.sla_due_at,
+                           q.queue_name,
+                           a.application_id::text, a.reference_number,
+                           a.category_version_id::text,
+                           cv.version_no,
+                           lc.category_name,
+                           coalesce(e.registered_name, p_app.full_name, 'Applicant') AS applicant_name
+                      FROM wf.case_file cf
+                      JOIN wf.queue q ON q.queue_id = cf.queue_id
+                      JOIN app.application a ON a.application_id = cf.application_id
+                      LEFT JOIN iam.entity e ON e.entity_id = a.applicant_entity_id
+                      LEFT JOIN iam.person p_app ON p_app.person_id = a.applicant_person_id
+                      LEFT JOIN cfg.category_version cv ON cv.category_version_id = a.category_version_id
+                      LEFT JOIN cfg.licence_category lc ON lc.category_id = cv.category_id
+                     ORDER BY cf.opened_at DESC
+                     LIMIT 1;
+                """)
+                case = cur.fetchone()
+
+            checklist_items = []
+            key_persons = []
+
+            if case and case["category_version_id"]:
+                cur.execute("""
+                    SELECT ci.checklist_item_id::text,
+                           ci.item_code,
+                           ci.description,
+                           ci.statutory_reference,
+                           ci.is_mandatory,
+                           cr.result,
+                           cr.remarks,
+                           p_rev.full_name AS reviewed_by_name,
+                           d.document_id::text,
+                           dv.file_name AS doc_filename
+                      FROM cfg.checklist_item ci
+                      LEFT JOIN wf.checklist_review cr
+                        ON cr.checklist_item_id = ci.checklist_item_id
+                       AND cr.case_id = %s
+                      LEFT JOIN iam.account a_rev ON a_rev.account_id = cr.reviewed_by_account_id
+                      LEFT JOIN iam.person p_rev ON p_rev.person_id = a_rev.person_id
+                      LEFT JOIN doc.document d
+                        ON d.checklist_item_id = ci.checklist_item_id
+                       AND d.application_id = %s
+                      LEFT JOIN doc.document_version dv
+                        ON dv.document_id = d.document_id
+                       AND dv.version_no = d.current_version_no
+                     WHERE ci.category_version_id = %s
+                     ORDER BY ci.display_order;
+                """, (case["case_id"], case["application_id"], case["category_version_id"]))
+                checklist_items = cur.fetchall()
+
+            if case and case["application_id"]:
+                cur.execute("""
+                    SELECT kpd.declaration_id::text,
+                           p.full_name,
+                           kpd.key_person_role,
+                           kpd.shareholding_percent,
+                           kpd.has_criminal_conviction,
+                           kpd.has_been_bankrupt,
+                           kpd.has_regulatory_sanction,
+                           kpd.is_disqualified_director,
+                           kpd.disclosure_notes,
+                           kpd.fit_proper_outcome,
+                           kpd.assessment_remarks,
+                           p_ass.full_name AS assessed_by_name
+                      FROM app.key_person_declaration kpd
+                      JOIN iam.person p ON p.person_id = kpd.person_id
+                      LEFT JOIN iam.account a_ass ON a_ass.account_id = kpd.assessed_by_account_id
+                      LEFT JOIN iam.person p_ass ON p_ass.person_id = a_ass.person_id
+                     WHERE kpd.application_id = %s
+                     ORDER BY kpd.declared_at, p.full_name;
+                """, (case["application_id"],))
+                key_persons = cur.fetchall()
+
+    total_checklist = len(checklist_items)
+    reviewed_count = sum(1 for item in checklist_items if item["result"] is not None)
+    total_kp = len(key_persons)
+    assessed_kp_count = sum(1 for kp in key_persons if kp["fit_proper_outcome"] != "PENDING")
+    remaining_count = (total_checklist - reviewed_count) + (total_kp - assessed_kp_count)
+
+    return templates.TemplateResponse(request, "review.html", {
+        "personas": personas,
+        "actor": actor,
+        "case": case,
+        "checklist_items": checklist_items,
+        "key_persons": key_persons,
+        "total_checklist": total_checklist,
+        "reviewed_count": reviewed_count,
+        "total_kp": total_kp,
+        "assessed_kp_count": assessed_kp_count,
+        "remaining_count": remaining_count,
+        "active_nav": "review",
+    })
+
+
+@router.post("/case/{case_id}/checklist")
+async def p22_save_checklist(
+    request: Request,
+    case_id: str,
+    checklist_item_id: str = Form(...),
+    document_id: Optional[str] = Form(None),
+    result: str = Form(...),
+    remarks: str = Form(""),
+):
+    with get_db() as conn:
+        personas = get_personas(conn)
+        actor = resolve_actor(request, personas)
+
+    try:
+        with get_db(actor["account_id"]) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO wf.checklist_review (
+                        case_id, checklist_item_id, document_id, result, remarks,
+                        reviewed_by_account_id, reviewed_at
+                    ) VALUES (%s, %s, %s, %s, nullif(%s, ''), %s, now())
+                    ON CONFLICT (case_id, checklist_item_id)
+                    DO UPDATE SET result = EXCLUDED.result,
+                                  remarks = EXCLUDED.remarks,
+                                  document_id = coalesce(EXCLUDED.document_id, wf.checklist_review.document_id),
+                                  reviewed_by_account_id = EXCLUDED.reviewed_by_account_id,
+                                  reviewed_at = now();
+                """, (case_id, checklist_item_id, document_id or None, result, remarks.strip(), actor["account_id"]))
+        return flash_redirect(f"/staff/case/{case_id}/review", f"Checklist item recorded as {result}.")
+    except psycopg.Error as e:
+        return flash_redirect(
+            f"/staff/case/{case_id}/review",
+            f"Database Constraint Enforced: {e.diag.message_primary or str(e)}",
+            "error",
+        )
+
+
+@router.post("/case/{case_id}/fit-proper")
+async def p22_save_fit_proper(
+    request: Request,
+    case_id: str,
+    declaration_id: str = Form(...),
+    fit_proper_outcome: str = Form(...),
+    assessment_remarks: str = Form(""),
+):
+    with get_db() as conn:
+        personas = get_personas(conn)
+        actor = resolve_actor(request, personas)
+
+    try:
+        with get_db(actor["account_id"]) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE app.key_person_declaration
+                       SET fit_proper_outcome = %s,
+                           assessed_by_account_id = %s,
+                           assessed_at = now(),
+                           assessment_remarks = nullif(%s, '')
+                     WHERE declaration_id = %s;
+                """, (fit_proper_outcome, actor["account_id"], assessment_remarks.strip(), declaration_id))
+        return flash_redirect(f"/staff/case/{case_id}/review", f"Fit & Proper outcome recorded: {fit_proper_outcome}.")
+    except psycopg.Error as e:
+        return flash_redirect(
+            f"/staff/case/{case_id}/review",
+            f"Database Constraint Enforced: {e.diag.message_primary or str(e)}",
+            "error",
+        )
+
+
+@router.post("/case/{case_id}/query")
+async def p22_raise_query(
+    request: Request,
+    case_id: str,
+    query_text: str = Form(...),
+):
+    with get_db() as conn:
+        personas = get_personas(conn)
+        actor = resolve_actor(request, personas)
+
+    try:
+        with get_db(actor["account_id"]) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO wf.case_query (case_id, raised_by_account_id, non_compliance_details, response_due_date)
+                    VALUES (%s, %s, %s, current_date + 14);
+                """, (case_id, actor["account_id"], query_text.strip()))
+
+                cur.execute("UPDATE wf.case_file SET status = 'AWAITING_APPLICANT' WHERE case_id = %s RETURNING application_id;", (case_id,))
+                row = cur.fetchone()
+                if row and row["application_id"]:
+                    cur.execute("UPDATE app.application SET status = 'AWAITING_APPLICANT' WHERE application_id = %s;", (row["application_id"],))
+
+        return flash_redirect(f"/staff/case/{case_id}/review", "Query issued to applicant and SLA clock paused.")
+    except psycopg.Error as e:
+        return flash_redirect(
+            f"/staff/case/{case_id}/review",
+            f"Database Rule Enforced: {e.diag.message_primary or str(e)}",
+            "error",
+        )
+
+
+@router.post("/case/{case_id}/recommend")
+async def p22_submit_recommendation(
+    request: Request,
+    case_id: str,
+    recommendation: str = Form(...),
+    notes: str = Form(...),
+):
+    with get_db() as conn:
+        personas = get_personas(conn)
+        actor = resolve_actor(request, personas)
+
+    try:
+        with get_db(actor["account_id"]) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT ws.workflow_stage_id
+                      FROM wf.case_file cf
+                      JOIN app.application a ON a.application_id = cf.application_id
+                      JOIN cfg.workflow_stage ws ON ws.category_version_id = a.category_version_id
+                     WHERE cf.case_id = %s
+                     ORDER BY ws.sequence_no ASC
+                     LIMIT 1;
+                """, (case_id,))
+                stage = cur.fetchone()
+                if stage:
+                    outcome_code = "PASSED" if recommendation == "RECOMMEND_APPROVAL" else "FAILED"
+                    cur.execute("""
+                        INSERT INTO wf.case_stage (
+                            case_id, workflow_stage_id, status, outcome, actor_account_id, remarks, started_at, completed_at
+                        ) VALUES (%s, %s, 'COMPLETED', %s, %s, %s, now(), now())
+                        ON CONFLICT (case_id, workflow_stage_id, attempt_no)
+                        DO UPDATE SET status = 'COMPLETED', outcome = EXCLUDED.outcome,
+                                      actor_account_id = EXCLUDED.actor_account_id,
+                                      remarks = EXCLUDED.remarks, completed_at = now();
+                    """, (case_id, stage["workflow_stage_id"], outcome_code, actor["account_id"], notes.strip()))
+        return flash_redirect(f"/staff?case_id={case_id}", f"Officer review submitted ({recommendation}). Case routed to Senior Officer.")
+    except psycopg.Error as e:
+        return flash_redirect(
+            f"/staff/case/{case_id}/review",
+            f"Database Rule Enforced: {e.diag.message_primary or str(e)}",
+            "error",
+        )
 
 
 @router.post("/review-doc")

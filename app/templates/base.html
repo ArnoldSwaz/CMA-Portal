@@ -3,216 +3,130 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CMA Online Regulatory & Licensing Portal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root {
-      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    body {
-      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .tabular { font-variant-numeric: tabular-nums; }
-
-    /* Tactile Buttons (Slate-900 & Amber-500 palette) */
-    .btn-primary {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-      background-color: #0f172a; color: #ffffff;
-      font-weight: 600; border-radius: 0.5rem;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      transition: transform 140ms var(--ease-out-quint), background-color 140ms ease, box-shadow 140ms ease;
-    }
-    .btn-primary:hover { background-color: #1e293b; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.16); }
-    .btn-primary:active { transform: scale(0.97); }
-
-    .btn-amber {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-      background-color: #f59e0b; color: #020617;
-      font-weight: 700; border-radius: 0.5rem;
-      box-shadow: 0 1px 2px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-      transition: transform 140ms var(--ease-out-quint), background-color 140ms ease, box-shadow 140ms ease;
-    }
-    .btn-amber:hover { background-color: #d97706; color: #ffffff; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.28); }
-    .btn-amber:active { transform: scale(0.97); }
-
-    .btn-emerald {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-      background-color: #059669; color: #ffffff;
-      font-weight: 600; border-radius: 0.5rem;
-      box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      transition: transform 140ms var(--ease-out-quint), background-color 140ms ease;
-    }
-    .btn-emerald:hover { background-color: #047857; }
-    .btn-emerald:active { transform: scale(0.97); }
-
-    /* Interactive Hub Cards */
-    .hub-card {
-      transition: transform 220ms var(--ease-out-quint), border-color 180ms ease, box-shadow 220ms var(--ease-out-quint);
-    }
-    .hub-card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(245, 158, 11, 0.65);
-      box-shadow: 0 10px 24px -8px rgba(15, 23, 42, 0.10);
-    }
-    .hub-card:active { transform: translateY(0) scale(0.99); }
-
-    /* Collapsible Sidebar Smooth Physics */
-    #sidebar {
-      transition: width 240ms var(--ease-out-quint);
-    }
-    #sidebar.collapsed {
-      width: 4.5rem;
-    }
-    #sidebar.collapsed .sidebar-label {
-      display: none;
-    }
-    #sidebar.collapsed .nav-item {
-      justify-content: center;
-      padding-left: 0;
-      padding-right: 0;
-    }
-
-    @keyframes enterUp {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .animate-enter { animation: enterUp 280ms var(--ease-out-quint) both; }
-    .delay-1 { animation-delay: 40ms; }
-    .delay-2 { animation-delay: 80ms; }
-    .delay-3 { animation-delay: 120ms; }
-  </style>
+  <title>{% block title %}CMA-ORLP — Capital Markets Authority Kenya{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css?v=4" />
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex">
+<body>
+  <div class="kenya-strip" aria-hidden="true"></div>
 
-  <!-- Collapsible Left Navigation Sidebar -->
-  <aside id="sidebar" class="w-64 bg-slate-900 text-white border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30">
-    <div>
-      <!-- Brand + Collapse Toggle -->
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between gap-2">
-        <a href="/" class="flex items-center gap-2.5 overflow-hidden">
-          <div class="w-9 h-9 rounded-lg bg-amber-500 text-slate-950 font-extrabold flex items-center justify-center text-sm shrink-0">
-            CMA
-          </div>
-          <div class="sidebar-label truncate">
-            <div class="font-semibold text-sm tracking-tight leading-tight">CMA Kenya</div>
-            <div class="text-[11px] text-slate-400">Cap. 485A Portal</div>
-          </div>
-        </a>
-        <button type="button" onclick="toggleSidebar()" title="Collapse / Expand Menu"
-                class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95 shrink-0">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Portal Navigation Links -->
-      <nav class="p-3 space-y-1">
-        <a href="/" title="Command Hub"
-           class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all {% if active_tab == 'hub' %}bg-amber-500/15 text-amber-300 border border-amber-500/30{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}">
-          <span class="text-base shrink-0">⌂</span>
-          <span class="sidebar-label truncate">Command Hub</span>
-        </a>
-
-        <a href="/register" title="1. Public Register & QR Check"
-           class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all {% if active_tab == 'public' %}bg-amber-500/15 text-amber-300 border border-amber-500/30{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}">
-          <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">01</span>
-          <span class="sidebar-label truncate">Public Register &amp; QR</span>
-        </a>
-
-        <a href="/applicant" title="2. Applicant Portal"
-           class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all {% if active_tab == 'applicant' %}bg-amber-500/15 text-amber-300 border border-amber-500/30{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}">
-          <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">02</span>
-          <span class="sidebar-label truncate">Applicant Portal</span>
-        </a>
-
-        <a href="/staff" title="3. CMA Case & Supervision"
-           class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all {% if active_tab == 'staff' %}bg-amber-500/15 text-amber-300 border border-amber-500/30{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}">
-          <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">03</span>
-          <span class="sidebar-label truncate">Case &amp; Supervision</span>
-        </a>
-
-        <a href="/audit" title="4. Audit Store & SLA Analytics"
-           class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all {% if active_tab == 'audit' %}bg-amber-500/15 text-amber-300 border border-amber-500/30{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}">
-          <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">04</span>
-          <span class="sidebar-label truncate">Audit Store &amp; SLA</span>
-        </a>
-      </nav>
-    </div>
-
-    <!-- Bottom Sidebar Controls: Active Actor Switcher & Demo Reset -->
-    <div class="p-3 border-t border-slate-800 space-y-2.5 bg-slate-950/40">
-      <form method="post" action="/switch-actor" class="sidebar-label space-y-1">
-        <input type="hidden" name="next_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}" />
-        <label class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Persona
-        </label>
-        <select name="actor_id" onchange="this.form.submit()"
-                class="w-full bg-slate-900 text-white text-xs rounded-lg px-2 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400 cursor-pointer">
-          {% for p in personas %}
-            <option value="{{ p.account_id }}" {% if p.account_id == actor.account_id %}selected{% endif %}>
-              {{ p.full_name }} ({% if p.entity_name %}{{ p.entity_name }}{% else %}{{ p.roles | join(', ') }}{% endif %})
-            </option>
-          {% endfor %}
-        </select>
-      </form>
-
-      <form method="post" action="/reset-demo" onsubmit="return confirm('Reset all test applications, cases, and newly issued licences back to the clean initial demo seed?');">
-        <button type="submit" title="Reset Demo Database"
-                class="nav-item w-full flex items-center justify-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 bg-slate-800/70 transition active:scale-95">
-          <span class="shrink-0">↻</span>
-          <span class="sidebar-label">Reset Demo Data</span>
-        </button>
-      </form>
-    </div>
-  </aside>
-
-  <!-- Main Content Area -->
-  <div class="flex-1 flex flex-col min-w-0">
-    <!-- Slim Context Top Strip -->
-    <header class="bg-white border-b border-slate-200/80 px-6 py-2.5 flex items-center justify-between text-xs text-slate-500">
-      <div class="font-medium text-slate-700">
-        Capital Markets Authority — Online Regulatory &amp; Licensing Portal
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span>Acting as <strong class="text-slate-900">{{ actor.full_name }}</strong></span>
-      </div>
-    </header>
-
-    <!-- Toast / Alert Banner -->
-    {% if msg %}
-    <div class="max-w-7xl mx-auto w-full px-6 mt-4 animate-enter">
-      <div class="rounded-lg p-3.5 border flex items-center justify-between gap-3 {% if kind == 'error' %}bg-red-50 border-red-300 text-red-900{% elif kind == 'info' %}bg-blue-50 border-blue-300 text-blue-900{% else %}bg-emerald-50 border-emerald-300 text-emerald-900{% endif %}">
-        <div class="text-sm font-medium">
-          {% if kind == 'error' %}⚠️ {% elif kind == 'info' %}ℹ️ {% else %}✅ {% endif %}{{ msg }}
+  <div class="app-shell">
+    <!-- Persistent Regulatory Sidebar -->
+    <aside class="sidebar no-print" id="cmaSidebar" aria-label="Portal Navigation" style="overflow-y: auto;">
+      <div>
+        <div class="sidebar-header">
+          <a href="/" style="display:flex;align-items:center;gap:0.65rem;text-decoration:none;color:#fff;">
+            <div class="brand-mark">CMA</div>
+            <div class="sidebar-label">
+              <div style="font-weight:700;font-size:0.86rem;line-height:1.15;">CMA-ORLP</div>
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.72);">Capital Markets Authority</div>
+            </div>
+          </a>
+          <button type="button" onclick="toggleSidebar()"
+                  style="padding: 0.3rem 0.55rem; font-size: 0.8rem; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; cursor: pointer;"
+                  title="Collapse navigation">
+            ☰
+          </button>
         </div>
-        <a href="{{ request.url.path }}" class="text-xs font-semibold underline opacity-75 hover:opacity-100">Dismiss</a>
+
+        <nav class="nav-list">
+          <a href="/" class="nav-link {% if active_nav == 'landing' %}active{% endif %}">
+            <span class="nav-badge">P01</span>
+            <span class="sidebar-label">Public Portal Home</span>
+          </a>
+          <a href="/hub" class="nav-link {% if active_nav == 'hub' or active_tab == 'hub' %}active{% endif %}">
+            <span class="nav-badge">HUB</span>
+            <span class="sidebar-label">Demo Command Hub</span>
+          </a>
+          <a href="/register" class="nav-link {% if active_nav == 'register' or active_tab == 'public' %}active{% endif %}">
+            <span class="nav-badge">P03</span>
+            <span class="sidebar-label">Public Register</span>
+          </a>
+          <a href="/applicant" class="nav-link {% if active_nav == 'applicant' or active_tab == 'applicant' %}active{% endif %}">
+            <span class="nav-badge">P11</span>
+            <span class="sidebar-label">Applicant Workspace</span>
+          </a>
+          <a href="/staff/inbox" class="nav-link {% if active_nav == 'inbox' or active_tab == 'staff' %}active{% endif %}">
+            <span class="nav-badge">P20</span>
+            <span class="sidebar-label">Officer Case Inbox</span>
+          </a>
+          <a href="/staff/case/APP-2026-0001/review" class="nav-link {% if active_nav == 'review' %}active{% endif %}">
+            <span class="nav-badge">P22</span>
+            <span class="sidebar-label">Checklist &amp; Fit/Proper</span>
+          </a>
+          <a href="/compliance" class="nav-link {% if active_nav == 'compliance' %}active{% endif %}">
+            <span class="nav-badge">P27</span>
+            <span class="sidebar-label">Filing &amp; Compliance</span>
+          </a>
+          <a href="/help" class="nav-link {% if active_nav == 'help' %}active{% endif %}">
+            <span class="nav-badge">P28</span>
+            <span class="sidebar-label">Help &amp; Accessibility</span>
+          </a>
+          <a href="/audit" class="nav-link {% if active_nav == 'audit' or active_tab == 'audit' %}active{% endif %}">
+            <span class="nav-badge">AUD</span>
+            <span class="sidebar-label">Immutable Audit Log</span>
+          </a>
+        </nav>
       </div>
+
+      <div class="sidebar-footer sidebar-label">
+        <div class="demo-banner">
+          <strong>Demo Persona Switcher (Not Auth)</strong><br />
+          Sets PostgreSQL <code>app.account_id</code> session context for RBAC &amp; audit logging.
+        </div>
+
+        <form method="post" action="/switch-persona">
+          <input type="hidden" name="next_url" value="{{ request.url.path }}" />
+          <label for="personaSelect" style="font-size:0.7rem;color:rgba(255,255,255,0.82);display:block;margin-bottom:0.25rem;font-weight:600;">
+            Active Acting Account:
+          </label>
+          <select id="personaSelect" name="account_id" onchange="this.form.submit()" class="sidebar-select">
+            {% for p in personas %}
+              <option value="{{ p.account_id }}" {% if p.account_id == actor.account_id %}selected{% endif %}>
+                {{ p.full_name }} ({{ p.roles | join(', ') }})
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+
+        <form method="post" action="/reset-demo" onsubmit="return confirm('Reset database back to clean demo seed?');">
+          <button type="submit" class="btn btn-outline" style="width:100%;font-size:0.74rem;padding:0.38rem;">
+            ↺ Reset Demo Database
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- Main Content Column -->
+    <div class="main-wrap">
+      <header class="top-bar no-print">
+        <div>
+          <strong>Capital Markets Authority (Kenya)</strong> &middot; Online Regulatory &amp; Licensing Portal
+        </div>
+        <div>
+          Acting as: <strong style="color:var(--cma-navy);">{{ actor.full_name }}</strong>
+          {% if actor.entity_name %}<span class="muted">({{ actor.entity_name }})</span>{% endif %}
+          <span class="badge badge-blue" style="margin-left:0.35rem;">{{ actor.roles | join(' · ') }}</span>
+        </div>
+      </header>
+
+      <main class="container animate-enter">
+        {% set flash_msg = request.query_params.get('msg') or msg %}
+        {% set flash_kind = request.query_params.get('kind') or kind or 'info' %}
+        {% if flash_msg %}
+          <div class="alert {% if flash_kind == 'error' %}alert-error{% elif flash_kind == 'success' %}alert-success{% else %}alert-info{% endif %}" role="status">
+            <span>{{ flash_msg }}</span>
+            <a href="{{ request.url.path }}" style="color:inherit;font-weight:700;text-decoration:none;">✕</a>
+          </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </main>
     </div>
-    {% endif %}
-
-    <main class="max-w-7xl mx-auto w-full px-6 py-6 flex-1 animate-enter">
-      {% block content %}{% endblock %}
-    </main>
-
-    <footer class="border-t border-slate-200/80 bg-white py-3 text-center text-xs text-slate-500">
-      CMA Online Regulatory &amp; Licensing Portal · PostgreSQL 16 Enforced Business Rules &amp; SHA-256 Audit Chain
-    </footer>
   </div>
 
   <script>
-    // Persist sidebar collapsed state across page loads
-    const sidebar = document.getElementById('sidebar');
-    if (localStorage.getItem('cma_sidebar_collapsed') === '1') {
-      sidebar.classList.add('collapsed');
-    }
     function toggleSidebar() {
-      sidebar.classList.toggle('collapsed');
-      localStorage.setItem('cma_sidebar_collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+      document.getElementById('cmaSidebar').classList.toggle('collapsed');
     }
   </script>
 </body>

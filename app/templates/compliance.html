@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}P27 — Filing Calendar &amp; Compliance Dashboard | CMA-ORLP{% endblock %}
+
+{% block content %}
+<style>
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #FFFFFF;
+  }
+  .cal-head {
+    background: var(--surface-muted);
+    color: var(--cma-navy);
+    font-weight: 700;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+  }
+  .cal-cell {
+    min-height: 108px;
+    padding: 0.45rem;
+    border-right: 1px solid #E6ECF0;
+    border-bottom: 1px solid #E6ECF0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .cal-cell.outside {
+    background: #F8FAFC;
+    color: #94A3B8;
+  }
+  .cal-cell.today {
+    box-shadow: inset 0 0 0 2px var(--cma-green);
+    background: #F4FBF7;
+  }
+  .cal-chip {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2rem 0.35rem;
+    border-radius: 5px;
+    line-height: 1.25;
+  }
+  .chip-overdue  { background: #FDECEC; color: #A32B21; border-left: 3px solid #A32B21; }
+  .chip-upcoming { background: #FEF3C7; color: #7A4A0B; border-left: 3px solid #D97706; }
+  .chip-filed    { background: #E6F4EC; color: #0F5C31; border-left: 3px solid #177A43; }
+  .chip-waived   { background: #EEF1F0; color: #334155; border-left: 3px solid #64748B; }
+</style>
+
+<!-- Page Header & Filter Controls (Task 11 P27) -->
+<div class="card" style="margin-bottom: 1.25rem; border-left: 5px solid var(--cma-green);">
+  <div class="card-header" style="margin-bottom: 0.75rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span class="badge badge-green">P27 &middot; OUTPUT SCREEN</span>
+        <span class="muted">Supervision &amp; Surveillance Division</span>
+      </div>
+      <h1 class="page-title" style="margin-top: 0.25rem;">
+        Filing Calendar &amp; Exception Alert Dashboard
+      </h1>
+      <p class="muted" style="margin: 0.2rem 0 0 0;">
+        Live view backed by <code>cmp.v_filing_calendar</code> and <code>cmp.compliance_exception</code>.
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" class="no-print">
+      <a href="/compliance/export.csv?category={{ selected_category }}&amp;return_code={{ selected_return_code }}"
+         class="btn btn-navy">
+        &darr; Export CSV
+      </a>
+      <button type="button" onclick="window.print()" class="btn btn-outline">
+        Print Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <form method="get" action="/compliance" class="no-print"
+        style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+    <input type="hidden" name="month" value="{{ month_label }}" />
+
+    <div style="min-width: 210px; flex: 1;">
+      <label class="label" for="filterCat">Licence Category</label>
+      <select id="filterCat" name="category" class="select">
+        <option value="">All Licence Categories</option>
+        {% for c in categories %}
+          <option value="{{ c.category_code }}" {% if selected_category == c.category_code %}selected{% endif %}>
+            {{ c.category_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="min-width: 230px; flex: 1;">
+      <label class="label" for="filterRet">Statutory Return Type</label>
+      <select id="filterRet" name="return_code" class="select">
+        <option value="">All Statutory Returns</option>
+        {% for rt in return_types %}
+          <option value="{{ rt.return_code }}" {% if selected_return_code == rt.return_code %}selected{% endif %}>
+            {{ rt.return_code }} &mdash; {{ rt.return_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+      <button type="submit" class="btn btn-primary">Apply Filters</button>
+      <a href="/compliance?month={{ month_label }}" class="btn btn-outline">Clear</a>
+    </div>
+  </form>
+</div>
+
+<!-- 4 KPI Summary Cards -->
+<div class="grid-4" style="margin-bottom: 1.25rem;">
+  <div class="card">
+    <div class="muted" style="font-weight: 600;">Overdue Returns</div>
+    <div class="tabular" style="font-size: 1.75rem; font-weight: 800; color: var(--cma-red); margin: 0.2rem 0;">
+      {{ overdue_count }}
+    </div>
+    <span class="badge badge-red">Past Statutory Due Date</span>
+  </div>
+
+  <div class="card">
+    <div class="muted" style="font-weight: 600;">Due Within 7 Days</div>
+    <div class="tabular" style="font-size: 1.75rem; font-weight: 800; color: var(--cma-amber); margin: 0.2rem 0;">
+      {{ due_soon_count }}
+    </div>
+    <span class="badge badge-amber">Upcoming Deadlines</span>
+  </div>
+
+  <div class="card">
+    <div class="muted" style="font-weight: 600;">Active Exceptions</div>
+    <div class="tabular" style="font-size: 1.75rem; font-weight: 800; color: var(--cma-navy); margin: 0.2rem 0;">
+      {{ open_exceptions }}
+    </div>
+    <span class="badge badge-blue">Open / Under Review</span>
+  </div>
+
+  <div class="card">
+    <div class="muted" style="font-weight: 600;">Critical (&ge; 7 Days Late)</div>
+    <div class="tabular" style="font-size: 1.75rem; font-weight: 800; color: var(--cma-red); margin: 0.2rem 0;">
+      {{ critical_late }}
+    </div>
+    <span class="badge badge-red">Escalation Priority</span>
+  </div>
+</div>
+
+<!-- Exception Alerts Queue (Sorted by Days Late Descending — Task 11 P27) -->
+<div class="card" style="margin-bottom: 1.25rem;">
+  <div class="card-header">
+    <div>
+      <h2 class="section-title" style="margin-bottom: 0.15rem;">
+        1. Compliance Exception Alerts (Sorted by Days Late Descending)
+      </h2>
+      <p class="muted" style="margin: 0;">
+        Prioritised supervisory queue from <code>cmp.compliance_exception</code>.
+      </p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="cma-table">
+      <thead>
+        <tr>
+          <th style="width: 11%;">Days Late</th>
+          <th style="width: 22%;">Licensee &amp; Category</th>
+          <th style="width: 18%;">Exception &amp; Return</th>
+          <th style="width: 27%;">Supervisory Details</th>
+          <th style="width: 22%;">Status &amp; Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ex in exceptions %}
+        <tr>
+          <td class="tabular">
+            {% if ex.days_late >= 7 %}
+              <span class="badge badge-red">{{ ex.days_late }} days late</span>
+            {% elif ex.days_late > 0 %}
+              <span class="badge badge-amber">{{ ex.days_late }} days late</span>
+            {% else %}
+              <span class="badge badge-slate">On time</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="font-weight: 700; color: var(--cma-navy);">{{ ex.entity_name }}</div>
+            <div class="font-mono" style="font-size: 0.75rem;">{{ ex.licence_number }}</div>
+            <div class="muted" style="font-size: 0.74rem;">{{ ex.category_name }}</div>
+          </td>
+          <td>
+            <span class="badge badge-slate">{{ ex.exception_type }}</span>
+            {% if ex.return_code %}
+              <div class="font-mono" style="font-size: 0.76rem; margin-top: 0.25rem; font-weight: 700;">
+                {{ ex.return_code }}
+              </div>
+            {% endif %}
+            {% if ex.due_date %}
+              <div class="muted tabular" style="font-size: 0.73rem;">Due: {{ ex.due_date }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div>{{ ex.details }}</div>
+            {% if ex.case_id %}
+              <div style="margin-top: 0.35rem;">
+                <a href="/staff?case_id={{ ex.case_id }}" style="font-size: 0.76rem; font-weight: 700; color: var(--cma-blue);">
+                  Linked Case: {{ ex.case_number }} &rarr;
+                </a>
+              </div>
+            {% endif %}
+          </td>
+          <td>
+            <div style="margin-bottom: 0.4rem;">
+              {% if ex.status == 'RESOLVED' %}
+                <span class="badge badge-green">RESOLVED</span>
+              {% elif ex.status == 'REFERRED_TO_ENFORCEMENT' %}
+                <span class="badge badge-red">ENFORCEMENT</span>
+              {% elif ex.status == 'UNDER_REVIEW' %}
+                <span class="badge badge-blue">UNDER REVIEW</span>
+              {% else %}
+                <span class="badge badge-amber">OPEN</span>
+              {% endif %}
+            </div>
+            <form method="post" action="/compliance/exception/{{ ex.exception_id }}/status" class="no-print"
+                  style="display: flex; gap: 0.35rem;">
+              <select name="status" class="select" style="font-size: 0.75rem; padding: 0.3rem 0.45rem;">
+                <option value="OPEN" {% if ex.status == 'OPEN' %}selected{% endif %}>OPEN</option>
+                <option value="UNDER_REVIEW" {% if ex.status == 'UNDER_REVIEW' %}selected{% endif %}>UNDER REVIEW</option>
+                <option value="RESOLVED" {% if ex.status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
+                <option value="REFERRED_TO_ENFORCEMENT" {% if ex.status == 'REFERRED_TO_ENFORCEMENT' %}selected{% endif %}>ENFORCEMENT</option>
+              </select>
+              <button type="submit" class="btn btn-navy" style="padding: 0.3rem 0.6rem; font-size: 0.74rem;">Set</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="muted" style="text-align: center; padding: 1.25rem;">
+            No compliance exceptions match the current filter.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Monthly Statutory Filing Calendar (Task 11 P27) -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="section-title" style="margin-bottom: 0.15rem;">
+        2. Statutory Filing Calendar &mdash; {{ month_title }}
+      </h2>
+      <p class="muted" style="margin: 0;">
+        Today is outlined in emerald green. Colour + text chips denote obligation status.
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.45rem;" class="no-print">
+      <a href="/compliance?month={{ prev_month }}&amp;category={{ selected_category }}&amp;return_code={{ selected_return_code }}"
+         class="btn btn-outline">&larr; Prev</a>
+      <a href="/compliance?category={{ selected_category }}&amp;return_code={{ selected_return_code }}"
+         class="btn btn-outline">Today</a>
+      <a href="/compliance?month={{ next_month }}&amp;category={{ selected_category }}&amp;return_code={{ selected_return_code }}"
+         class="btn btn-outline">Next &rarr;</a>
+    </div>
+  </div>
+
+  <div class="cal-grid">
+    <div class="cal-head">Mon</div>
+    <div class="cal-head">Tue</div>
+    <div class="cal-head">Wed</div>
+    <div class="cal-head">Thu</div>
+    <div class="cal-head">Fri</div>
+    <div class="cal-head">Sat</div>
+    <div class="cal-head">Sun</div>
+
+    {% for week in calendar_weeks %}
+      {% for day in week %}
+        <div class="cal-cell {% if not day.in_month %}outside{% endif %} {% if day.is_today %}today{% endif %}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="tabular" style="font-size: 0.78rem; font-weight: 700;">{{ day.date.day }}</span>
+            {% if day.is_today %}
+              <span class="badge badge-green" style="font-size: 0.62rem; padding: 0.05rem 0.35rem;">TODAY</span>
+            {% endif %}
+          </div>
+
+          {% for ob in day.obligations %}
+            <div class="cal-chip {% if ob.status == 'OVERDUE' %}chip-overdue{% elif ob.status == 'FILED' %}chip-filed{% elif ob.status == 'WAIVED' %}chip-waived{% else %}chip-upcoming{% endif %}"
+                 title="{{ ob.return_name }} ({{ ob.licence_number }})">
+              <div><strong>{{ ob.status }}</strong> &middot; {{ ob.return_code }}</div>
+              <div style="opacity: 0.85;">{{ ob.licence_number }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

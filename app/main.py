@@ -1,56 +1,42 @@
-from fastapi import FastAPI, Form
-from fastapi.responses import RedirectResponse
+import subprocess
+from pathlib import Path
 
-from app.db import flash_redirect, get_db
-from app.routers import applicant, audit, public, staff
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="CMA Online Regulatory & Licensing Portal")
+from app.db import DEMO_MODE, flash_redirect
+from app.routers import applicant, audit, compliance, public, staff
 
+app = FastAPI(title="CMA Online Regulatory & Licensing Portal (CMA-ORLP)")
 
-@app.post("/switch-actor")
-async def switch_actor(actor_id: str = Form(...), next_url: str = Form("/")):
-    resp = RedirectResponse(url=next_url or "/", status_code=303)
-    resp.set_cookie("actor_id", actor_id, httponly=True)
-    return resp
-
-
-@app.post("/reset-demo")
-async def reset_demo():
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                TRUNCATE TABLE
-                    wf.decision,
-                    wf.case_stage,
-                    wf.case_query,
-                    wf.case_file,
-                    fin.receipt,
-                    fin.payment,
-                    fin.fee,
-                    doc.document_version,
-                    doc.document,
-                    app.application_field_value,
-                    app.application,
-                    cmp.compliance_exception,
-                    cmp.return_value,
-                    cmp.regulatory_return
-                CASCADE;
-
-                DELETE FROM lic.certificate WHERE licence_id NOT IN (
-                    '90000000-0000-0000-0000-000000000001',
-                    '90000000-0000-0000-0000-000000000002'
-                );
-                DELETE FROM lic.licence WHERE licence_id NOT IN (
-                    '90000000-0000-0000-0000-000000000001',
-                    '90000000-0000-0000-0000-000000000002'
-                );
-                UPDATE cmp.filing_obligation SET status = 'UPCOMING'
-                 WHERE obligation_id = '48000000-0000-0000-0000-000000000001';
-            """)
-    return flash_redirect("/", "Demo database reset to clean initial seed state.")
-
+BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 app.include_router(public.router)
 app.include_router(applicant.router)
 app.include_router(staff.router)
+app.include_router(compliance.router)
 app.include_router(audit.router)
+
+
+@app.post("/reset-demo")
+def reset_demo(request: Request):
+    if not DEMO_MODE:
+        return flash_redirect("/", "Demo reset is disabled in production mode.", "error")
+
+    root = BASE_DIR.parent
+    subprocess.run(
+        [
+            "psql", "-d", "cma_portal", "-v", "ON_ERROR_STOP=1", "-c",
+            "DROP SCHEMA IF EXISTS aud, rpt, cmp, lic, fin, wf, doc, app, cfg, iam, ntf CASCADE;",
+        ],
+        check=True,
+    )
+    subprocess.run(["psql", "-d", "cma_portal", "-v", "ON_ERROR_STOP=1", "-f", str(root / "cma_portal_database.sql")], check=True)
+    subprocess.run(["psql", "-d", "cma_portal", "-v", "ON_ERROR_STOP=1", "-f", str(root / "schema_fixes_and_seed.sql")], check=True)
+
+    demo_patch = root / "seed_presentation_demo.sql"
+    if demo_patch.exists():
+        subprocess.run(["psql", "-d", "cma_portal", "-v", "ON_ERROR_STOP=1", "-f", str(demo_patch)], check=True)
+
+    return flash_redirect("/hub", "Database reset to clean demo baseline.", "success")

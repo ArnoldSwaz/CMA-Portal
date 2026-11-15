@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}P28 — Help, Accessibility &amp; Privacy | CMA-ORLP{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 1.25rem; border-left: 5px solid var(--cma-blue);">
+  <span class="badge badge-blue">P28 &middot; HELP &amp; COMPLIANCE NOTICE</span>
+  <h1 class="page-title" style="margin-top: 0.3rem;">
+    Portal Guidance, Accessibility &amp; Data Protection Statement
+  </h1>
+  <p class="muted" style="margin: 0.2rem 0 0 0;">
+    Regulatory reference guide for applicants, licensed market intermediaries, and supervisory officers.
+  </p>
+</div>
+
+<div class="grid-2" style="margin-bottom: 1.25rem;">
+  <div class="card">
+    <h2 class="section-title">1. Accessibility Statement (WCAG 2.1 Level AA)</h2>
+    <p class="muted">
+      The CMA Online Regulatory &amp; Licensing Portal is engineered to meet <strong>WCAG 2.1 Level AA</strong> standards:
+    </p>
+    <ul style="font-size: 0.84rem; color: var(--text-main); padding-left: 1.25rem; margin: 0;">
+      <li>Minimum 4.5:1 text contrast across CMA Navy (<code>#0F3A5F</code>) and Regulatory Green (<code>#177A43</code>) tokens.</li>
+      <li>Dual-coded status indicators combining explicit text labels with semantic colour badges.</li>
+      <li>Full keyboard navigation with visible amber focus rings (<code>:focus-visible</code>) and <code>prefers-reduced-motion</code> support.</li>
+      <li>Dedicated print stylesheets for official certificates and supervisory compliance reports.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">2. Data Protection &amp; Audit Integrity</h2>
+    <p class="muted">
+      Personal and corporate records submitted to CMA-ORLP are governed by the <strong>Data Protection Act, 2019 (Kenya)</strong> and the <strong>Capital Markets Act (Cap. 485A)</strong>:
+    </p>
+    <ul style="font-size: 0.84rem; color: var(--text-main); padding-left: 1.25rem; margin: 0;">
+      <li>Every state mutation is recorded in an immutable append-only audit log (<code>aud.audit_event</code>) attributed to the acting <code>app.account_id</code>.</li>
+      <li>Sensitive Key Person Fit &amp; Proper disclosures are restricted to authorized CMA Licensing &amp; Legal officers via role-based access control.</li>
+      <li>Public Register searches expose only statutory licence metadata and verification codes.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="section-title">3. Statutory Licence Categories Configured in Database</h2>
+  <div class="table-wrap">
+    <table class="cma-table">
+      <thead>
+        <tr>
+          <th>Category Code</th>
+          <th>Licence Category Name</th>
+          <th>Validity (Months)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td class="font-mono" style="font-weight: 700; color: var(--cma-navy);">{{ c.category_code }}</td>
+          <td>{{ c.category_name }}</td>
+          <td class="tabular">{{ c.validity_months }} months</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
