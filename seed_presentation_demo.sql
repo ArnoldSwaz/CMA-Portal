@@ -53,7 +53,14 @@ BEGIN
         SELECT category_version_id INTO v_cat_ver_id FROM cfg.category_version LIMIT 1;
     END IF;
 
-    SELECT queue_id INTO v_queue_id FROM wf.queue LIMIT 1;
+    SELECT q.queue_id INTO v_queue_id
+      FROM wf.queue q
+      JOIN cfg.category_version cv ON cv.category_version_id = v_cat_ver_id
+      JOIN cfg.licence_category lc ON lc.category_id = cv.category_id
+     WHERE q.queue_name = lc.category_name || ' Queue';
+    IF v_queue_id IS NULL THEN
+        SELECT queue_id INTO v_queue_id FROM wf.queue LIMIT 1;
+    END IF;
 
     IF NOT EXISTS (SELECT 1 FROM app.application WHERE reference_number = 'APP-2026-0001') THEN
         INSERT INTO app.application (

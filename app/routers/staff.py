@@ -397,7 +397,7 @@ async def p22_submit_recommendation(
                 """, (case_id,))
                 stage = cur.fetchone()
                 if stage:
-                    outcome_code = "PASSED" if recommendation == "RECOMMEND_APPROVAL" else "FAILED"
+                    outcome_code = "RECOMMEND_APPROVE" if recommendation == "RECOMMEND_APPROVAL" else "RECOMMEND_REJECT"
                     cur.execute("""
                         INSERT INTO wf.case_stage (
                             case_id, workflow_stage_id, status, outcome, actor_account_id, remarks, started_at, completed_at
