@@ -1,6 +1,6 @@
 # CMA-ORLP: Online Regulatory and Licensing Portal
 
-Group 11, CS3201 Systems Analysis and Design. A demo of the Capital Markets Authority (Kenya) licensing and compliance portal, built on PostgreSQL.
+A demo of the Capital Markets Authority (Kenya) licensing and compliance portal, built on PostgreSQL.
 
 This is a presentation demo, not the full system. It covers the internal officer screens:
 
@@ -37,5 +37,5 @@ Persona switching is demo-only and is not authentication. Set `DEMO_MODE=false` 
 ## Tests
 `psql -d cma_portal -f cma_portal_tests.sql` on a fresh database (18 checks). `sanity_check.sql` gives a quick data check.
 
-## Known database issues (to fix after the presentation)
+## Known database issues
 Password hash readable by service roles, INSERTs bypass some status triggers, PAID without a settled payment, licence from a non-approved decision, editable published category version, 54 unindexed foreign keys, audit-seal race.
